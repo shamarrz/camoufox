@@ -80,7 +80,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y msitools p7zip-full aria2
+          # ccache is required by Mozilla's mach configure (referenced from
+          # the mozconfig); ubuntu-24.04 runners don't have it preinstalled.
+          sudo apt-get install -y msitools p7zip-full aria2 ccache
 
       - name: Fetch source
         env:
