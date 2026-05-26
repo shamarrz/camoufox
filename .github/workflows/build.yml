@@ -90,7 +90,17 @@ jobs:
 
       - name: Setup and bootstrap
         run: |
-          make setup-minimal
+          # `make setup` instead of `setup-minimal` so cf_source_dir has its
+          # own .git + `unpatched` tag. patch.py runs `git clean -fdx` later;
+          # without an inner repo, that walks UP to the camoufox checkout's
+          # .git and wipes the entire FF source tree (every file is untracked
+          # from the parent's perspective). Bounding the clean to an inner
+          # repo is the fix.
+          # CI runners have no git identity by default; `git commit` would
+          # fail. Set it ephemerally for the commit `make setup` does.
+          git config --global user.email "ci@adstackpro.local"
+          git config --global user.name "CI"
+          make setup
           make mozbootstrap
           mkdir -p dist
 
