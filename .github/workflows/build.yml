@@ -10,16 +10,14 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     strategy:
+      # Fork override: only Windows x86_64. AdstackPro only ships Windows
+      # and upstream's matrix has historically tripped on i686/arm builds.
+      # See https://github.com/daijro/camoufox/blob/main/.github/workflows/build.yml
+      # for the upstream multi-platform matrix.
+      fail-fast: false
       matrix:
-        target: [linux, windows, macos]
-        arch: [x86_64, arm64, i686]
-        exclude:
-          # Fails (.mozbuild does not include clang++-cl)
-          - target: windows
-            arch: arm64
-          # Unsuported
-          - target: macos
-            arch: i686
+        target: [windows]
+        arch: [x86_64]
 
     steps:
       - name: Maximize build space
