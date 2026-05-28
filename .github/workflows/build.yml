@@ -84,6 +84,26 @@ jobs:
           # the mozconfig); ubuntu-24.04 runners don't have it preinstalled.
           sudo apt-get install -y msitools p7zip-full aria2 ccache
 
+      - name: Relocate heavy build dirs to /mnt (sdb1)
+        run: |
+          # The default runner layout puts the whole build on /dev/root
+          # (~72G, only ~46G free after cleanup) while /dev/sdb1 mounted at
+          # /mnt sits nearly empty (~70G free). A full Firefox compile plus
+          # the 16G swapfile created below can exhaust /dev/root, which is
+          # what failed run 26544570939 with "No space left on device".
+          #
+          # Move the multi-GB mozbootstrap toolchain (~/.mozbuild) and the
+          # ccache dir onto the idle sdb1 disk so the obj dir on /dev/root
+          # has the full free space to itself. The swapfile is likewise
+          # created on /mnt in the "Create swap space" step.
+          sudo mkdir -p /mnt/mozbuild /mnt/ccache
+          sudo chown -R "$(id -u):$(id -g)" /mnt/mozbuild /mnt/ccache
+          # ~/.mozbuild does not exist yet on a fresh runner; symlink it so
+          # `make mozbootstrap` populates sdb1 instead of /dev/root.
+          ln -sfn /mnt/mozbuild "$HOME/.mozbuild"
+          echo "CCACHE_DIR=/mnt/ccache" >> "$GITHUB_ENV"
+          df -h
+
       - name: Fetch source
         env:
           CAMOUFOX_PASSWD: ${{ secrets.CAMOUFOX_PASSWD }}
@@ -108,10 +128,12 @@ jobs:
 
       - name: Create swap space
         run: |
-          sudo fallocate -l 16G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          # Create the swapfile on /mnt (sdb1) rather than /dev/root so the
+          # 16G allocation does not eat into the disk the obj dir builds on.
+          sudo fallocate -l 16G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
           free -h
 
       - name: Build
